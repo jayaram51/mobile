@@ -1,0 +1,1358 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>College Canteen — Mobile App</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+
+    :root{--accent:#f97316;--cardRadius:16px}
+    html,body,#app{height:100%}
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial}
+    .app-shell{max-width:760px;margin:0 auto;background:transparent}
+    .app-header{backdrop-filter: blur(6px);background:linear-gradient(180deg,rgba(255,255,255,0.8),rgba(255,255,255,0.6));}
+    .card{border-radius:var(--cardRadius);box-shadow:0 8px 24px rgba(2,6,23,0.06);background:white}
+    .btn-large{padding:.82rem 1rem;border-radius:12px;font-weight:600}
+    .muted{color:#64748b}
+    .accent-underline{width:56px;height:4px;border-radius:8px;background:linear-gradient(90deg,var(--accent),#22c55e);margin:8px auto 0}
+    .item-card-mobile{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px}
+    .item-name{font-weight:600}
+    .floating-cart{position:fixed;right:16px;bottom:86px;z-index:60}
+    .bottom-bar{position:fixed;left:0;right:0;bottom:0;z-index:70;background:linear-gradient(180deg,#ffffff,#fbfbfb);border-top:1px solid #e6edf3;padding:8px}
+    @media(min-width:768px){.app-shell{padding:0 12px}}
+
+    /* modal content wrapper to detect backdrop clicks */
+    .modal-center { display:flex; align-items:flex-start; justify-content:center; padding:28px; }
+    .modal-card { width:100%; max-width:720px; border-radius:18px; overflow:hidden; background:white; }
+    .hidden { display:none !important; }
+    body.overflow-hidden { overflow: hidden; touch-action: none; }
+    #viewReviewsModal {
+  z-index: 9999 !important;
+}
+
+/* Also make sure modals fill viewport correctly */
+.modal-center {
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+
+
+/* Prevent header overlap (especially on fixed layouts) */
+#smartHeader {
+  z-index: 20 !important;
+}
+
+/* Orders modal polish */
+.order-card {
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+  background: white;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.order-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+.status-badge {
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 9999px;
+  padding: 2px 8px;
+  display: inline-block;
+}
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+.status-verified {
+  background: #dcfce7;
+  color: #065f46;
+}
+.status-complete {
+  background: #e0f2fe;
+  color: #075985;
+}
+.order-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  padding: 4px 0;
+}
+.order-item + .order-item {
+  border-top: 1px dashed #e5e7eb;
+}
+.order-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+
+    /* highlight animation for header message */
+    @keyframes highlightPulse {
+      0% { transform: translateY(0); opacity: 1; }
+      50% { transform: translateY(-4px); opacity: 0.95; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+    .highlight-bubble { animation: highlightPulse 3.5s ease-in-out infinite; }
+
+    /* Atom for dish highlight when try now clicked */
+    .highlight-flash {
+      transition: box-shadow .3s, transform .15s;
+      box-shadow: 0 4px 18px rgba(255,159,67,0.25);
+      transform: translateY(-3px);
+      border-radius: 12px;
+    }
+
+    /* small stars for rating display */
+    .star { font-size: 14px; color: #f59e0b; margin-right: 2px; }
+    /* Make the payment modal full screen */
+/* Compact centered payment card */
+#paymentModal .modal-card {
+  width: 90% !important;
+  max-width: 420px !important;
+  height: auto !important;
+  max-height: 85vh !important;
+  margin: auto;
+  border-radius: 18px;
+  overflow-y: auto;
+}
+
+#paymentModal img.qr-img {
+  width: 200px;
+  height: 200px;
+}
+
+#paymentModal .btn-primary {
+  width: 100%;
+  font-size: 0.95rem;
+  margin-top: 1rem;
+}
+
+
+  </style>
+</head>
+<body class="bg-slate-50">
+  <div id="app" class="app-shell min-h-screen">
+
+    <!-- ================= NEW SMART DYNAMIC HEADER ================= -->
+    <header id="smartHeader" class="bg-gradient-to-r from-orange-500 to-red-600 text-white shadow-lg p-4 md:p-5 relative">
+      <div class="max-w-3xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-22 rounded-lg bg-white/20 flex items-center justify-center text-white font-extrabold text-lg">REC</div>
+          <div>
+            <div class="text-lg md:text-2xl font-extrabold tracking-wide">Foodies</div>
+            <div class="text-xs md:text-sm opacity-80">Fresh on campus · Fast pickup</div>
+          </div>
+        </div>
+
+        <div class="flex-1 flex flex-col md:flex-row items-center justify-center gap-3">
+          <div id="headerHighlight" class="px-3 py-1 rounded-full bg-white/20 text-sm md:text-base highlight-bubble text-center md:text-left">
+            🍔 Discover today’s special: Spicy Chicken Fried Rice!
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button id="tryNowBtn" class="bg-white text-orange-600 px-3 py-1 rounded-full font-semibold shadow hover:shadow-md">Try Now</button>
+            <button id="openReviewCenter" class="bg-white/10 text-white px-3 py-1 rounded-full border border-white/20 hover:bg-white/20">Reviews</button>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button id="ordersNavBtnTop" class="px-3 py-2 rounded-lg text-sm bg-white/20 border border-white/20">📝 <span id="ordersBadgeTop" class="ml-1 inline-block bg-red-500 text-white rounded-full px-2 text-xs hidden">0</span></button>
+          <button id="cartNavBtnTop" class="px-3 py-2 rounded-lg text-sm bg-white text-orange-600">🛒 <span id="cartNavCountTop" class="ml-1 font-semibold">0</span></button>
+        </div>
+      </div>
+    </header>
+    <!-- ================= END NEW HEADER ================= -->
+
+    <!-- HEADER (original kept for compatibility but hidden to avoid duplicate) -->
+    <header id="legacyHeader" class="app-header fixed top-0 left-0 right-0 z-50 border-b border-slate-100 hidden">
+      <div class="max-w-3xl mx-auto flex items-center justify-between px-4 py-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 font-extrabold">CC</div>
+          <div>
+            <div class="text-sm font-semibold text-slate-800">College Canteen</div>
+            <div class="text-xs muted">Fresh food · Quick service</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="ordersNavBtn" class="px-3 py-2 rounded-lg text-sm bg-white border shadow-sm">📝 <span id="ordersBadge" class="ml-1 inline-block bg-red-500 text-white rounded-full px-2 text-xs hidden">0</span></button>
+          <button id="cartNavBtn" class="px-3 py-2 rounded-lg text-sm bg-orange-500 text-white">🛒 <span id="cartNavCount" class="ml-1 font-semibold">0</span></button>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN -->
+    <main class="pt-6 md:pt-8 pb-36">
+
+     
+      <section id="menu" class="px-4 mt-4">
+        <div class="text-center mb-4">
+          <h2 class="text-lg font-bold text-slate-900">Today's Menu</h2>
+          <div class="accent-underline mx-auto"></div>
+        </div>
+
+        <div class="flex flex-wrap gap-3 justify-center mb-4">
+          <button class="tab-btn px-4 py-2 bg-white border rounded-full text-sm" data-tab="breakfast" onclick="selectTab(event)">Breakfast</button>
+          <button class="tab-btn px-4 py-2 bg-white border rounded-full text-sm" data-tab="lunch" onclick="selectTab(event)">Lunch</button>
+          <button class="tab-btn px-4 py-2 bg-white border rounded-full text-sm" data-tab="snacks" onclick="selectTab(event)">Snacks</button>
+          <button class="tab-btn px-4 py-2 bg-white border rounded-full text-sm" data-tab="beverages" onclick="selectTab(event)">Beverages</button>
+          <button class="tab-btn px-4 py-2 bg-white border rounded-full text-sm" data-tab="dinner" onclick="selectTab(event)">Dinner</button>
+        </div>
+
+        <div id="itemsContainer" class="space-y-3"></div>
+      </section>
+    </main>
+
+    <!-- Floating cart (visible when cart has items) -->
+    <div id="floatingCart" class="floating-cart hidden">
+      <button id="floatingCartBtn" class="bg-orange-500 text-white px-4 py-3 rounded-full shadow-lg flex items-center gap-2">
+        🛒 <span id="floatingCount">0</span>
+      </button>
+    </div>
+
+    <!-- BOTTOM BAR -->
+    <div class="bottom-bar">
+      <div class="max-w-3xl mx-auto flex items-center justify-between px-4">
+        <div class="flex items-center gap-3">
+          <div class="text-sm muted">Total</div>
+          <div class="text-lg font-semibold">₹<span id="cartTotalBottom">0</span></div>
+        </div>
+        <div>
+          <button id="goToCartBottom" class="btn-large bg-emerald-600 text-white">Checkout</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CART MODAL (backdrop + centered) -->
+    <div id="cartModal" class="hidden fixed inset-0 z-60 bg-black/40 modal-center" aria-hidden="true">
+      <div class="modal-card card p-0">
+        <div class="p-4 border-b flex items-center justify-between">
+          <button id="closeCart" class="text-orange-500 text-lg font-semibold flex items-center gap-1" aria-label="Close cart">
+            ← <span class="text-sm font-normal text-slate-700">Back</span>
+          </button>
+          <div class="font-bold">Your Cart</div>
+          <div></div>
+        </div>
+
+        <div class="p-4 overflow-y-auto" style="max-height:60vh">
+          <div id="cartItems" class="space-y-3"></div>
+          <div id="emptyCart" class="text-center py-8 text-slate-500">Your cart is empty</div>
+        </div>
+
+        <div id="cartFooter" class="p-4 border-t hidden">
+          <div class="flex items-center justify-between mb-3">
+            <div class="font-semibold">Total: ₹<span id="cartTotal">0</span></div>
+            <button id="proceedToPayment" class="bg-emerald-600 text-white px-4 py-2 rounded-md">Proceed</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAYMENT MODAL -->
+    <div id="paymentModal" class="hidden fixed inset-0 z-70 bg-black/40 modal-center" aria-hidden="true">
+      <div class="modal-card p-0">
+        <div class="p-4 border-b flex items-center justify-between">
+          <div class="font-bold">Scan & Pay</div>
+          <button id="closePayment" class="text-xl" aria-label="Close payment">&times;</button>
+        </div>
+        <div class="p-6 text-center">
+          <div class="text-sm text-slate-600">Total Amount</div>
+          <div class="text-3xl font-bold text-emerald-600 my-4">₹<span id="paymentTotal">0</span></div>
+          <div class="payment-qr-wrap">
+            <img id="upiQrImg" class="qr-img w-64 mx-auto rounded-xl" src="qrcode.jpg" alt="UPI QR">
+          </div>
+          <div class="mt-6">
+            <button id="paymentDoneBtn" class="btn-primary bg-orange-500 text-white px-4 py-3 rounded-lg">Payment Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUCCESS / TOAST -->
+    <div id="successModal" class="hidden fixed inset-0 z-80 bg-black/40 modal-center" aria-hidden="true">
+      <div class="max-w-sm mx-auto bg-white rounded-2xl shadow-xl p-6 text-center">
+        <div class="text-4xl mb-2">🎉</div>
+        <h3 class="text-xl font-bold text-emerald-600 mb-2">Order Placed Successfully!</h3>
+        <p class="text-slate-600 mb-2">Your order is being prepared.</p>
+        <p class="text-sm text-slate-400 mb-4">Order ID: <span id="orderId"></span></p>
+        <button id="closeSuccess" class="bg-orange-500 text-white px-6 py-2 rounded-full">Continue</button>
+      </div>
+    </div>
+
+    <!-- ORDERS MODAL -->
+<div id="ordersModal" class="hidden fixed inset-0 z-[9999] bg-black/40 flex items-end justify-center" aria-hidden="true">
+  <div class="modal-card w-full max-w-md rounded-t-2xl bg-white shadow-2xl overflow-hidden animate-slideUp flex flex-col"
+       style="max-height: 80vh;">
+
+    <!-- drag handle / header -->
+    <div class="flex items-center justify-between p-4 border-b bg-white sticky top-0 z-10">
+      <div class="w-12 h-1.5 bg-slate-300 rounded-full mx-auto absolute left-1/2 -translate-x-1/2 top-2"></div>
+      <div class="font-bold text-slate-800 text-center flex-1">Your Orders</div>
+      <button id="closeOrders" class="text-xl font-bold text-slate-600 hover:text-red-500">&times;</button>
+    </div>
+
+    <!-- orders scroll area -->
+    <div id="ordersList" class="flex-1 overflow-y-auto p-4 bg-slate-50 space-y-4"></div>
+  </div>
+</div>
+
+
+        <div id="ordersList" class="p-4 overflow-y-auto flex-1 space-y-3">
+          <p class="text-center text-slate-500">Fetching orders...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== NEW REVIEW CENTER MODAL ========== -->
+    <div id="reviewModal" class="hidden fixed inset-0 z-90 bg-black/40 modal-center" aria-hidden="true">
+      <div class="modal-card p-0">
+        <div class="p-4 border-b flex items-center justify-between">
+          <div class="font-bold">Give a Review</div>
+          <button id="closeReviewModal" class="text-xl" aria-label="Close review">&times;</button>
+        </div>
+
+        <div class="p-4">
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-slate-700 mb-1">Dish</label>
+            <select id="reviewDishSelect" class="w-full border rounded px-3 py-2">
+              <!-- options injected dynamically -->
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-slate-700 mb-1">Rating</label>
+            <div id="ratingRadios" class="flex gap-2">
+              <label class="inline-flex items-center gap-2"><input type="radio" name="rating" value="1">1</label>
+              <label class="inline-flex items-center gap-2"><input type="radio" name="rating" value="2">2</label>
+              <label class="inline-flex items-center gap-2"><input type="radio" name="rating" value="3" checked>3</label>
+              <label class="inline-flex items-center gap-2"><input type="radio" name="rating" value="4">4</label>
+              <label class="inline-flex items-center gap-2"><input type="radio" name="rating" value="5">5</label>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-slate-700 mb-1">Write your thoughts</label>
+            <textarea id="reviewText" rows="4" class="w-full border rounded px-3 py-2" placeholder="Loved it!"></textarea>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <div id="reviewStatus" class="text-sm text-slate-500"></div>
+            <div>
+              <button id="submitReviewBtn" class="bg-emerald-600 text-white px-4 py-2 rounded-md">Submit Review</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== VIEW REVIEWS MODAL ========== -->
+    <div id="viewReviewsModal" class="hidden fixed inset-0 z-100 bg-black/40 modal-center" aria-hidden="true">
+      <div class="modal-card p-0">
+        <div class="p-4 border-b flex items-center justify-between">
+          <div class="font-bold">Reviews</div>
+          <button id="closeViewReviews" class="text-xl" aria-label="Close view reviews">&times;</button>
+        </div>
+
+        <div class="p-4 max-h-[60vh] overflow-y-auto">
+          <div id="reviewsList" class="space-y-3 text-sm text-slate-700">
+            <!-- reviews inserted dynamically -->
+            <div class="text-slate-500">Select a dish or click "Reviews" in header to view recent reviews.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+  </div>
+
+  <!-- ============ SCRIPT (module, firebase kept) ============ -->
+  <script type="module">
+/* ========= Firebase imports ========= */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getDatabase, ref, set, onValue, runTransaction, remove, get, child, push
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+/* ======== Initialize apps (unchanged keys from your file) ======== */
+const studentApp = initializeApp({
+  apiKey: "AIzaSyDuZXZx7DCRitt_4E2XIOmknhqHEUTUXL0",
+  authDomain: "student-326fc.firebaseapp.com",
+  databaseURL: "https://student-326fc-default-rtdb.firebaseio.com",
+  projectId: "student-326fc"
+}, "studentApp");
+const studentDB = getDatabase(studentApp);
+
+const thirdApp = initializeApp({
+  apiKey: "AIzaSyCGMvFT7bJjQVJGlU3qZdfZEq9W_jZpH8g",
+  authDomain: "checkorder-52699.firebaseapp.com",
+  databaseURL: "https://checkorder-52699-default-rtdb.firebaseio.com"
+}, "thirdApp");
+const thirdDB = getDatabase(thirdApp);
+
+const fourthApp = initializeApp({
+  apiKey: "AIzaSyAO3r5BVnuI0xgvVypjGSwCqZuiPiLIIE",
+  authDomain: "checkavailability-4daf3.firebaseapp.com",
+  databaseURL: "https://checkavailability-4daf3-default-rtdb.firebaseio.com"
+}, "fourthApp");
+const fourthDB = getDatabase(fourthApp);
+
+const staffApp = initializeApp({
+  apiKey: "AIzaSyCN5ngY-q2DFfce2Q-Ju2WtreemecrrGkQ",
+  authDomain: "staff-e61b9.firebaseapp.com",
+  databaseURL: "https://staff-e61b9-default-rtdb.firebaseio.com",
+  projectId: "staff-e61b9",
+  storageBucket: "staff-e61b9.firebasestorage.app",
+  messagingSenderId: "532002565855",
+  appId: "1:532002565855:web:811780a75dcc57b85a036a",
+  measurementId: "G-642VKD43HX"
+}, "staffApp");
+const staffDB = getDatabase(staffApp);
+
+/* ========= Menu (unchanged) ========= */
+const menuItems = [
+  {id:1,name:"puri",price:35,category:"breakfast"},
+  {id:2,name:"idly",price:25,category:"breakfast"},
+  {id:3,name:"dosa",price:20,category:"breakfast"},
+  {id:4,name:"onion dosa",price:30,category:"breakfast"},
+  {id:5,name:"fried rice",price:65,category:"lunch"},
+  {id:6,name:"chicken fried rice",price:75,category:"lunch"},
+  {id:7,name:"veg noodles",price:60,category:"lunch"},
+  {id:8,name:"egg noodles",price:70,category:"lunch"},
+  {id:9,name:"chicken egg noodles",price:80,category:"lunch"},
+  {id:10,name:"samosa",price:10,category:"snacks"},
+  {id:11,name:"veg puff",price:15,category:"snacks"},
+  {id:12,name:"egg puff",price:25,category:"snacks"},
+  {id:13,name:"lays",price:35,category:"snacks"},
+  {id:14,name:"thumbs-up",price:15,category:"beverages"},
+  {id:15,name:"coco-cola",price:20,category:"beverages"},
+  {id:16,name:"roti with chicken curry",price:110,category:"dinner"},
+  {id:17,name:"roti with dal",price:75,category:"dinner"},
+  {id:18,name:"roti with paneer",price:90,category:"dinner"}
+];
+
+/* ========= State & DOM ========= */
+let cart = [];
+const availabilityData = {};
+const itemsContainer = document.getElementById('itemsContainer');
+const cartNavBtn = document.getElementById('cartNavBtn');
+const cartNavCount = document.getElementById('cartNavCount');
+const cartModal = document.getElementById('cartModal');
+const cartItemsContainer = document.getElementById('cartItems');
+const emptyCart = document.getElementById('emptyCart');
+const cartFooter = document.getElementById('cartFooter');
+const cartTotalEl = document.getElementById('cartTotal');
+const heroCartMobile = document.getElementById('heroCartMobile');
+const floatingCart = document.getElementById('floatingCart');
+const floatingCartBtn = document.getElementById('floatingCartBtn');
+const floatingCount = document.getElementById('floatingCount');
+const paymentModal = document.getElementById('paymentModal');
+const paymentTotal = document.getElementById('paymentTotal');
+const paymentDoneBtn = document.getElementById('paymentDoneBtn');
+const closePayment = document.getElementById('closePayment');
+const successModal = document.getElementById('successModal');
+const orderIdEl = document.getElementById('orderId');
+const closeSuccess = document.getElementById('closeSuccess');
+const ordersNavBtn = document.getElementById('ordersNavBtn');
+const ordersModal = document.getElementById('ordersModal');
+const ordersList = document.getElementById('ordersList');
+const cartTotalBottom = document.getElementById('cartTotalBottom');
+const goToCartBottom = document.getElementById('goToCartBottom');
+const ordersBadge = document.getElementById('ordersBadge');
+
+const tryNowBtn = document.getElementById('tryNowBtn');
+const headerHighlight = document.getElementById('headerHighlight');
+const openReviewCenter = document.getElementById('openReviewCenter');
+
+const reviewModal = document.getElementById('reviewModal');
+const closeReviewModal = document.getElementById('closeReviewModal');
+const reviewDishSelect = document.getElementById('reviewDishSelect');
+const submitReviewBtn = document.getElementById('submitReviewBtn');
+const reviewText = document.getElementById('reviewText');
+const reviewStatus = document.getElementById('reviewStatus');
+
+const viewReviewsModal = document.getElementById('viewReviewsModal');
+const closeViewReviews = document.getElementById('closeViewReviews');
+const reviewsList = document.getElementById('reviewsList');
+
+const ordersNavBtnTop = document.getElementById('ordersNavBtnTop');
+const cartNavBtnTop = document.getElementById('cartNavBtnTop');
+const ordersBadgeTop = document.getElementById('ordersBadgeTop');
+const cartNavCountTop = document.getElementById('cartNavCountTop');
+
+/* ========= Helpers ========= */
+function formatShortId(val) {
+  const s = String(val || '');
+  if (s.length >= 3) return s.slice(-3);
+  return s.padStart(3, '0');
+}
+function normalizeName(n) {
+  return String(n || '').trim().toLowerCase().replace(/\s+/g,' ');
+}
+function escapeHtml(str){
+  if (str === undefined || str === null) return '';
+  return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+}
+function toggleBodyScroll(lock) {
+  if (lock) document.body.classList.add('overflow-hidden');
+  else document.body.classList.remove('overflow-hidden');
+}
+
+/* ========= Render Items (mobile card style) ========= */
+function renderAllItems(filter = 'all') {
+  itemsContainer.innerHTML = '';
+  const list = (filter === 'all') ? menuItems : menuItems.filter(i => i.category === filter);
+  list.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'item-card-mobile card';
+    const normName = normalizeName(item.name);
+    card.dataset.nameNorm = normName;
+    card.dataset.itemId = item.id;
+    // attach review summary placeholder
+    card.innerHTML = `
+      <div class="flex-1">
+        <div class="item-name">${escapeHtml(item.name)}</div>
+        <div class="text-xs muted mt-1">${escapeHtml(item.category)}</div>
+        <div class="mt-2 text-xs text-slate-500" data-review-summary>Loading reviews…</div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="text-lg font-semibold">₹${item.price}</div>
+        <div class="flex flex-col items-end gap-2">
+          <button class="add-btn bg-emerald-600 text-white px-3 py-2 rounded-md text-sm" data-id="${item.id}">Add</button>
+          <button class="review-btn text-xs text-slate-600 border px-2 py-1 rounded" data-name="${escapeHtml(item.name)}">Review</button>
+        </div>
+      </div>
+    `;
+    itemsContainer.appendChild(card);
+
+    // fetch and show summary for this dish (avg rating, count)
+    updateReviewSummaryForDish(normName, card.querySelector('[data-review-summary]'));
+  });
+  updateAvailabilityUI();
+}
+
+/* ========= Reviews sub-system ========= */
+/*
+  Reviews are written to studentDB at path: studentDB -> reviews -> <dish-normalized> -> <pushId>:
+  {
+    rating: Number(1..5),
+    text: "user comment",
+    createdAt: timestamp
+  }
+  If you want a separate Firebase project for reviews, replace studentDB with reviewsDB (getDatabase(reviewsApp))
+*/
+
+async function submitReview() {
+  const dish = reviewDishSelect.value;
+  if (!dish) {
+    reviewStatus.textContent = 'Please pick a dish.';
+    return;
+  }
+  const rating = Number(document.querySelector('input[name="rating"]:checked')?.value || 3);
+  const text = reviewText.value?.trim() || '';
+  reviewStatus.textContent = 'Submitting...';
+  submitReviewBtn.disabled = true;
+
+  try {
+    const reviewObj = {
+      rating: rating,
+      text: text,
+      createdAt: Date.now()
+    };
+    // push under studentDB -> reviews -> dish
+    const reviewsRef = ref(studentDB, 'reviews/' + dish);
+    await push(reviewsRef, reviewObj);
+    reviewStatus.textContent = 'Thanks! Your review was posted.';
+    // clear
+    reviewText.value = '';
+    // refresh summaries
+    updateReviewSummaryForDish(dish);
+    // optionally auto-open view reviews for this dish
+    setTimeout(() => {
+      reviewStatus.textContent = '';
+      hideReviewModal();
+      openViewReviewsFor(dish);
+    }, 700);
+  } catch (err) {
+    console.error('Failed to submit review', err);
+    reviewStatus.textContent = 'Failed to submit. Try again.';
+  } finally {
+    submitReviewBtn.disabled = false;
+  }
+}
+
+function showReviewModal(preselectDish) {
+  // populate select with menu items (if empty)
+  ensureReviewSelectOptions();
+  if (preselectDish) {
+    const norm = normalizeName(preselectDish);
+    // try to find matching option value
+    const opt = Array.from(reviewDishSelect.options).find(o => o.value === norm);
+    if (opt) reviewDishSelect.value = norm;
+  }
+  reviewStatus.textContent = '';
+  reviewModal.classList.remove('hidden');
+  reviewModal.setAttribute('aria-hidden','false');
+  toggleBodyScroll(true);
+}
+
+function hideReviewModal() {
+  reviewModal.classList.add('hidden');
+  reviewModal.setAttribute('aria-hidden','true');
+  toggleBodyScroll(false);
+}
+
+function ensureReviewSelectOptions() {
+  if (reviewDishSelect.options.length > 0) return;
+  menuItems.forEach(mi => {
+    const opt = document.createElement('option');
+    opt.value = normalizeName(mi.name);
+    opt.textContent = mi.name;
+    reviewDishSelect.appendChild(opt);
+  });
+}
+
+function openViewReviewsFor(dishNorm) {
+  reviewsList.innerHTML = '<div class="text-slate-500">Loading reviews…</div>';
+  viewReviewsModal.classList.remove('hidden');
+  viewReviewsModal.setAttribute('aria-hidden','false');
+  toggleBodyScroll(true);
+
+  // fetch reviews for dishNorm
+  const rRef = ref(studentDB, 'reviews/' + dishNorm);
+  onValue(rRef, snapshot => {
+    const val = snapshot.exists() ? snapshot.val() : null;
+    renderReviewsList(dishNorm, val);
+  }, { onlyOnce: true });
+}
+
+function renderReviewsList(dishNorm, reviewsObj) {
+  reviewsList.innerHTML = '';
+  const header = document.createElement('div');
+  header.className = 'mb-2 font-semibold';
+  const displayName = dishNorm ? (menuItems.find(m=>normalizeName(m.name)===dishNorm)?.name || dishNorm) : 'Dish';
+  header.textContent = `Reviews for ${displayName}`;
+  reviewsList.appendChild(header);
+
+  if (!reviewsObj) {
+    const empty = document.createElement('div');
+    empty.className = 'text-sm text-slate-500';
+    empty.textContent = 'No reviews yet. Be the first to review!';
+    reviewsList.appendChild(empty);
+    return;
+  }
+
+  const entries = Object.keys(reviewsObj).sort((a,b)=> (reviewsObj[b].createdAt||0) - (reviewsObj[a].createdAt||0));
+  entries.forEach(k => {
+    const r = reviewsObj[k];
+    const wrap = document.createElement('div');
+    wrap.className = 'p-3 border rounded-md bg-white';
+    const when = r && r.createdAt ? new Date(r.createdAt).toLocaleString() : '';
+    wrap.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="font-semibold">${'⭐'.repeat(Math.max(1, Math.min(5, Number(r.rating||3))))}</div>
+          <div class="text-xs text-slate-400">${escapeHtml(when)}</div>
+        </div>
+      </div>
+      <div class="mt-2 text-slate-700">${escapeHtml(r.text || '')}</div>
+    `;
+    reviewsList.appendChild(wrap);
+  });
+}
+
+/* summary: fetch average rating & count and show in item card */
+async function updateReviewSummaryForDish(dishNorm, targetEl) {
+  try {
+    const rRef = ref(studentDB, 'reviews/' + dishNorm);
+    const snap = await get(rRef);
+    if (!snap.exists()) {
+      if (targetEl) targetEl.textContent = 'No reviews yet';
+      return;
+    }
+    const val = snap.val();
+    const arr = Object.values(val || {});
+    if (!arr.length) {
+      if (targetEl) targetEl.textContent = 'No reviews yet';
+      return;
+    }
+    let sum = 0;
+    arr.forEach(x => { sum += Number(x.rating || 0); });
+    const avg = (sum / arr.length) || 0;
+    const avgRounded = Math.round(avg * 10) / 10;
+    if (targetEl) {
+      targetEl.innerHTML = `<span class="text-sm font-semibold">${avgRounded} <span class="muted">(${arr.length} reviews)</span></span>`;
+    }
+  } catch (err) {
+    console.warn('Failed to fetch review summary', err);
+    if (targetEl) targetEl.textContent = 'Reviews unavailable';
+  }
+}
+
+/* ========= Availability (realtime) ========= */
+function listenToAvailability(){
+  try {
+    const availabilityRef = ref(fourthDB, "availability/");
+    onValue(availabilityRef, snapshot => {
+      if (snapshot.exists()) {
+        const raw = snapshot.val();
+        Object.keys(raw || {}).forEach(k => {
+          availabilityData[normalizeName(k)] = raw[k];
+        });
+        Object.values(raw || {}).forEach(v => {
+          if (v && typeof v === 'object' && v.name) {
+            availabilityData[normalizeName(v.name)] = (v.available === undefined) ? true : Boolean(v.available);
+          }
+        });
+        updateAvailabilityUI();
+      }
+    });
+  } catch (err) {
+    console.warn('Availability listener error', err);
+  }
+}
+function updateAvailabilityUI(){
+  document.querySelectorAll('.item-card-mobile').forEach(card => {
+    const nameNorm = card.dataset.nameNorm || normalizeName(card.querySelector('.item-name')?.textContent || '');
+    if (!nameNorm) return;
+    const addBtn = card.querySelector('.add-btn');
+    const avail = (availabilityData[nameNorm] === undefined) ? true : Boolean(availabilityData[nameNorm]);
+    if (avail === false) {
+      card.classList.add('opacity-60');
+      if (addBtn) { addBtn.textContent = 'Unavailable'; addBtn.classList.remove('bg-emerald-600'); addBtn.classList.add('bg-gray-300'); addBtn.disabled = true; }
+    } else {
+      card.classList.remove('opacity-60');
+      if (addBtn) { addBtn.textContent = 'Add'; addBtn.classList.remove('bg-gray-300'); addBtn.classList.add('bg-emerald-600'); addBtn.disabled = false; }
+    }
+  });
+}
+
+/* ========= Cart logic ========= */
+function findCartItem(id) { return cart.find(i => i.id === id); }
+function addToCartById(id) {
+  const item = menuItems.find(i => i.id === id);
+  if (!item) return;
+  const existing = findCartItem(id);
+  if (existing) existing.qty++;
+  else cart.push({...item, qty: 1});
+  updateCartUI();
+}
+function updateCartUI() {
+  cartItemsContainer.innerHTML = '';
+  if (cart.length === 0) {
+    emptyCart.classList.remove('hidden');
+    cartFooter.classList.add('hidden');
+    cartNavCount.textContent = 0;
+    cartTotalEl.textContent = 0;
+    paymentTotal.textContent = 0;
+    floatingCount.textContent = 0;
+    cartTotalBottom.textContent = 0;
+    floatingCart.classList.add('hidden');
+    // top nav counts
+    cartNavCountTop.textContent = 0;
+    return;
+  }
+  emptyCart.classList.add('hidden');
+  cartFooter.classList.remove('hidden');
+  let total = 0;
+  let totalQty = 0;
+  cart.forEach(item => {
+    const itemTotal = (Number(item.price) || 0) * (Number(item.qty) || 0);
+    total += itemTotal;
+    totalQty += Number(item.qty) || 0;
+    const div = document.createElement('div');
+    div.className = 'flex items-center justify-between bg-orange-50 p-3 rounded-md';
+    div.innerHTML = `
+      <div>
+        <div class="font-semibold">${escapeHtml(item.name)}</div>
+        <div class="text-xs muted">₹${item.price} each • ₹${itemTotal} total</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="decrease px-3 py-1 bg-white border rounded" data-id="${item.id}">-</button>
+        <div class="px-3">${item.qty}</div>
+        <button class="increase px-3 py-1 bg-white border rounded" data-id="${item.id}">+</button>
+      </div>
+    `;
+    cartItemsContainer.appendChild(div);
+  });
+  cartTotalEl.textContent = total;
+  paymentTotal.textContent = total;
+  cartNavCount.textContent = totalQty;
+  floatingCount.textContent = totalQty;
+  cartTotalBottom.textContent = total;
+  floatingCart.classList.remove('hidden');
+  // top nav counts
+  cartNavCountTop.textContent = totalQty;
+}
+
+/* ========= Events (cart/menu) ========= */
+document.addEventListener('click', (e) => {
+  // Add buttons
+  if (e.target && e.target.classList && e.target.classList.contains('add-btn')) {
+    const id = parseInt(e.target.dataset.id);
+    addToCartById(id);
+  }
+
+  // Review button on item cards
+  if (e.target && e.target.classList && e.target.classList.contains('review-btn')) {
+    const dishName = e.target.dataset.name || e.target.closest('.item-card-mobile')?.querySelector('.item-name')?.textContent;
+    showReviewModal(dishName);
+  }
+
+  // Hero cart simplified: click button itself
+  if (e.target && (e.target.id === 'heroCartMobile' || e.target.closest && e.target.closest('#heroCartMobile'))) {
+    showCart();
+  }
+});
+
+// Cart item qty controls
+cartItemsContainer.addEventListener('click', e => {
+  const id = parseInt(e.target.dataset.id);
+  if (!id) return;
+  const item = findCartItem(id);
+  if (!item) return;
+  if (e.target.classList.contains('increase')) item.qty++;
+  else if (e.target.classList.contains('decrease')) {
+    item.qty--;
+    if (item.qty <= 0) cart = cart.filter(i => i.id !== id);
+  }
+  updateCartUI();
+});
+
+// Buttons that open/close modals
+if (cartNavBtn) cartNavBtn.addEventListener('click', showCart);
+document.getElementById('closeCart').addEventListener('click', hideCart);
+if (floatingCartBtn) floatingCartBtn.addEventListener('click', showCart);
+goToCartBottom.addEventListener('click', showCart);
+
+// Also wire top nav buttons
+if (cartNavBtnTop) cartNavBtnTop.addEventListener('click', showCart);
+if (ordersNavBtnTop) ordersNavBtnTop.addEventListener('click', () => {
+  ordersModal.classList.remove('hidden');
+  ordersModal.setAttribute('aria-hidden', 'false');
+  toggleBodyScroll(true);
+  rebuildOrdersList();
+});
+
+// Proceed to payment
+document.getElementById('proceedToPayment').addEventListener('click', () => {
+  if (cart.length === 0) return alert('Cart is empty!');
+  hideCart();
+  const total = cart.reduce((s,it)=>s + (Number(it.price)||0) * (Number(it.qty)||0), 0);
+  paymentTotal.textContent = total;
+  sessionStorage.setItem('pendingOrderForQR', JSON.stringify({
+    createdAt: Date.now(),
+    totalAmount: total,
+    items: cart.map(i => ({ name: i.name, price: i.price, qty: i.qty }))
+  }));
+  showPayment();
+});
+
+
+
+// Payment Done -> push to checkorders (keeps your logic)
+paymentDoneBtn.addEventListener('click', async () => {
+  const raw = sessionStorage.getItem('pendingOrderForQR');
+  if (!raw) {
+    alert('No pending payment found. Please try again.');
+    return;
+  }
+  paymentDoneBtn.disabled = true;
+  paymentDoneBtn.textContent = 'Submitting...';
+
+  const pending = JSON.parse(raw);
+  try {
+    const counterRef = ref(thirdDB, 'lastOrderId');
+    const tx = await runTransaction(counterRef, (current) => (current || 0) + 1);
+    const newOrderId = tx.snapshot.val();
+
+    const orderData = {
+      orderId: newOrderId,
+      totalAmount: pending.totalAmount,
+      items: pending.items,
+      status: 'pending',
+      createdAt: Date.now()
+    };
+
+    const orderRef = ref(thirdDB, 'orders/' + newOrderId);
+    await set(orderRef, orderData);
+
+    orderIdEl.textContent = formatShortId(newOrderId);
+    hidePayment();
+    showSuccess();
+
+    cart = [];
+    updateCartUI();
+
+    sessionStorage.removeItem('pendingOrderForQR');
+  } catch (err) {
+    console.error('Error pushing order to checkorders', err);
+    alert('Failed to place order. See console for details.');
+  } finally {
+    paymentDoneBtn.disabled = false;
+    paymentDoneBtn.textContent = 'Payment Done';
+  }
+});
+
+closePayment.addEventListener('click', hidePayment);
+closeSuccess.addEventListener('click', hideSuccess);
+
+// Orders modal open/close
+if (ordersNavBtn) {
+  ordersNavBtn.addEventListener('click', () => {
+    ordersModal.classList.remove('hidden');
+    ordersModal.setAttribute('aria-hidden', 'false');
+    toggleBodyScroll(true);
+    rebuildOrdersList();
+  });
+  document.getElementById('closeOrders').addEventListener('click', () => {
+    ordersModal.classList.add('hidden');
+    ordersModal.setAttribute('aria-hidden', 'true');
+    toggleBodyScroll(false);
+  });
+}
+
+/* ========= Modal show/hide helpers (new reliable functions) ========= */
+function showCart() {
+  cartModal.classList.remove('hidden');
+  cartModal.setAttribute('aria-hidden', 'false');
+  toggleBodyScroll(true);
+  updateCartUI();
+}
+function hideCart() {
+  cartModal.classList.add('hidden');
+  cartModal.setAttribute('aria-hidden', 'true');
+  toggleBodyScroll(false);
+}
+function showPayment() {
+  paymentModal.classList.remove('hidden');
+  paymentModal.setAttribute('aria-hidden', 'false');
+  toggleBodyScroll(true);
+}
+function hidePayment() {
+  paymentModal.classList.add('hidden');
+  paymentModal.setAttribute('aria-hidden', 'true');
+  toggleBodyScroll(false);
+}
+function showSuccess() {
+  successModal.classList.remove('hidden');
+  successModal.setAttribute('aria-hidden', 'false');
+  toggleBodyScroll(true);
+}
+function hideSuccess() {
+  successModal.classList.add('hidden');
+  successModal.setAttribute('aria-hidden', 'true');
+  toggleBodyScroll(false);
+}
+
+/* Close on backdrop click for cart/payment/success/orders/reviews */
+['cartModal','paymentModal','successModal','ordersModal','reviewModal','viewReviewsModal'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('click', (ev) => {
+    // close only if clicking backdrop (i.e., target is the backdrop container itself)
+    if (ev.target === el) {
+      if (id === 'cartModal') hideCart();
+      else if (id === 'paymentModal') hidePayment();
+      else if (id === 'successModal') hideSuccess();
+      else if (id === 'ordersModal') {
+        el.classList.add('hidden');
+        el.setAttribute('aria-hidden','true');
+        toggleBodyScroll(false);
+      } else if (id === 'reviewModal') {
+        hideReviewModal();
+      } else if (id === 'viewReviewsModal') {
+        viewReviewsModal.classList.add('hidden');
+        viewReviewsModal.setAttribute('aria-hidden','true');
+        toggleBodyScroll(false);
+      }
+    }
+  });
+});
+
+/* Close mods on Escape key */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (!cartModal.classList.contains('hidden')) hideCart();
+    if (!paymentModal.classList.contains('hidden')) hidePayment();
+    if (!successModal.classList.contains('hidden')) hideSuccess();
+    if (!ordersModal.classList.contains('hidden')) {
+      ordersModal.classList.add('hidden');
+      ordersModal.setAttribute('aria-hidden','true');
+      toggleBodyScroll(false);
+    }
+    if (!reviewModal.classList.contains('hidden')) hideReviewModal();
+    if (!viewReviewsModal.classList.contains('hidden')) {
+      viewReviewsModal.classList.add('hidden');
+      viewReviewsModal.setAttribute('aria-hidden','true');
+      toggleBodyScroll(false);
+    }
+  }
+});
+
+/* ========= Orders listeners / deletion logic (unchanged except UI calls) ========= */
+let latestCheckOrders = {};
+let latestStudentVerified = {};
+let latestStaffVerified = {};
+const checkOrdersRef = ref(thirdDB, 'orders/');
+const studentVerifiedRef = ref(studentDB, 'orders/');
+const staffVerifiedRef = ref(staffDB, 'verifiedOrders/');
+const scheduledRemovals = {};
+const TWENTY_MINUTES = 20 * 60 * 1000;
+
+async function deleteFromBothIfExists(key) {
+  if (!key) return;
+  try {
+    await remove(ref(studentDB, 'orders/' + key)).catch(()=>{});
+    await remove(ref(thirdDB, 'orders/' + key)).catch(()=>{});
+    console.log('Deleted order from both DBs:', key);
+  } catch (err) {
+    console.error('Error deleting both DB entries for', key, err);
+  }
+}
+
+function scheduleDeletion(key, verifiedAt) {
+  if (!key) return;
+  if (scheduledRemovals[key]) return;
+  const now = Date.now();
+  let removeAt = (verifiedAt && typeof verifiedAt === 'number') ? (verifiedAt + TWENTY_MINUTES) : (now + TWENTY_MINUTES);
+  const delay = Math.max(0, removeAt - now);
+  if (delay === 0) {
+    deleteFromBothIfExists(key);
+    return;
+  }
+  const tid = setTimeout(() => {
+    deleteFromBothIfExists(key).catch(()=>{});
+    clearTimeout(tid);
+    delete scheduledRemovals[key];
+  }, delay);
+  scheduledRemovals[key] = tid;
+}
+
+onValue(checkOrdersRef, snapshot => {
+  latestCheckOrders = snapshot.exists() ? snapshot.val() : {};
+  if (!ordersModal.classList.contains('hidden')) rebuildOrdersList();
+});
+onValue(studentVerifiedRef, snapshot => {
+  latestStudentVerified = snapshot.exists() ? snapshot.val() : {};
+  Object.keys(latestStudentVerified || {}).forEach(key => {
+    const od = latestStudentVerified[key];
+    const verifiedAt = od && (od.pushedAt || od.verifiedAt || od.createdAt) ? (od.pushedAt || od.verifiedAt || od.createdAt) : Date.now();
+    if (Date.now() - verifiedAt >= TWENTY_MINUTES) {
+      deleteFromBothIfExists(key).catch(()=>{});
+    } else {
+      scheduleDeletion(key, verifiedAt);
+    }
+  });
+  if (!ordersModal.classList.contains('hidden')) rebuildOrdersList();
+  updateOrdersBadge();
+});
+onValue(staffVerifiedRef, snapshot => {
+  latestStaffVerified = snapshot.exists() ? snapshot.val() : {};
+  Object.keys(latestStaffVerified || {}).forEach(key => {
+    const od = latestStaffVerified[key];
+    const verifiedAt = od && (od.verifiedAt || od.createdAt || od.pushedAt) ? (od.verifiedAt || od.createdAt || od.pushedAt) : Date.now();
+    scheduleDeletion(key, verifiedAt);
+  });
+  if (!ordersModal.classList.contains('hidden')) rebuildOrdersList();
+  updateOrdersBadge();
+});
+
+function updateOrdersBadge(){
+  const staffCount = Object.keys(latestStaffVerified || {}).length;
+  const studentCount = Object.keys(latestStudentVerified || {}).length;
+  const count = Math.max(staffCount, studentCount);
+  if (ordersBadge) {
+    if (count > 0) {
+      ordersBadge.classList.remove('hidden');
+      ordersBadge.textContent = count;
+    } else {
+      ordersBadge.classList.add('hidden');
+    }
+  }
+  if (ordersBadgeTop) {
+    if (count > 0) {
+      ordersBadgeTop.classList.remove('hidden');
+      ordersBadgeTop.textContent = count;
+    } else {
+      ordersBadgeTop.classList.add('hidden');
+    }
+  }
+}
+
+function rebuildOrdersList() {
+  ordersList.innerHTML = '';
+  const staffKeys = Object.keys(latestStaffVerified || {}).sort((a,b) => Number(b) - Number(a));
+  if (staffKeys.length > 0) {
+    const header = document.createElement('div');
+    header.className = 'mb-2 font-semibold';
+    header.textContent = 'Payment Verified Orders';
+    ordersList.appendChild(header);
+    staffKeys.forEach(k => {
+      const od = latestStaffVerified[k];
+      const wrap = document.createElement('div');
+      wrap.className = 'p-3 border rounded-md bg-emerald-50 mb-2';
+      let itemsHtml = '';
+      if (od.items && Array.isArray(od.items) && od.items.length) {
+        itemsHtml = '<div class="mt-2 text-sm text-slate-700">';
+        od.items.forEach(it => {
+          const name = escapeHtml(it && it.name ? it.name : (it && it.itemName ? it.itemName : 'Unknown'));
+          const qty = Number(it && it.qty ? it.qty : 1);
+          const price = Number(it && it.price ? it.price : 0);
+          const itemTotal = qty * price;
+          itemsHtml += `<div class="flex justify-between"><div>${name} x ${escapeHtml(String(qty))}</div>₹${escapeHtml(String(itemTotal))}</div></div>`;
+        });
+        itemsHtml += '</div>';
+      } else if (od.items && typeof od.items === 'object') {
+        itemsHtml = '<div class="mt-2 text-sm text-slate-700">';
+        Object.keys(od.items).forEach(key => {
+          const it = od.items[key];
+          const name = escapeHtml(it && it.name ? it.name : key);
+          const qty = Number(it && it.qty ? it.qty : 1);
+          const price = Number(it && it.price ? it.price : 0);
+          itemsHtml += `<div class="flex justify-between"><div>${name} x ${escapeHtml(String(qty))}</div><div>₹${escapeHtml(String(price))}</div></div>`;
+        });
+        itemsHtml += '</div>';
+      } else {
+        itemsHtml = '<div class="text-sm text-slate-500 mt-2">No item details.</div>';
+      }
+      const displayShort = od.orderId ? formatShortId(od.orderId) : formatShortId(k);
+      wrap.innerHTML = `
+        <div class="flex items-center justify-between">
+          <div class="font-semibold">Order #${escapeHtml(displayShort)}</div>
+          <div class="text-sm text-slate-600">Total: ₹${escapeHtml(String(od.totalAmount || 0))}</div>
+        </div>
+        ${itemsHtml}
+      `;
+      ordersList.appendChild(wrap);
+    });
+  } else {
+    const header = document.createElement('div');
+    header.className = 'mb-2 font-semibold text-slate-600';
+    header.textContent = 'No payment verified orders found';
+    ordersList.appendChild(header);
+  }
+  const completedKeys = Object.keys(latestStudentVerified || {}).sort((a,b) => Number(b) - Number(a));
+  if (completedKeys.length > 0) {
+    const header2 = document.createElement('div');
+    header2.className = 'mt-4 mb-2 font-semibold';
+    header2.textContent = 'Completed Orders';
+    ordersList.appendChild(header2);
+    completedKeys.forEach(k => {
+      const od = latestStudentVerified[k];
+      const wrap = document.createElement('div');
+      wrap.className = 'p-3 border rounded-md bg-white mb-2';
+      let itemsHtml = '';
+      if (od.items && Array.isArray(od.items)) {
+        itemsHtml = '<div class="mt-2 text-sm text-slate-700">';
+        od.items.forEach(it => {
+          const name = escapeHtml(it && it.name ? it.name : 'Unknown');
+          const qty = Number(it && it.qty ? it.qty : 1);
+          const price = Number(it && it.price ? it.price : 0);
+          const itemTotal = qty * price;
+          itemsHtml += `<div class="flex justify-between"><div>${name} x ${escapeHtml(String(qty))}</div><div>₹${escapeHtml(String(price))} • ₹${escapeHtml(String(itemTotal))}</div></div>`;
+        });
+        itemsHtml += '</div>';
+      } else if (od.items && typeof od.items === 'object') {
+        itemsHtml = '<div class="mt-2 text-sm text-slate-700">';
+        Object.keys(od.items).forEach(key => {
+          const it = od.items[key];
+          const name = escapeHtml(it && it.name ? it.name : key);
+          const qty = Number(it && it.qty ? it.qty : 1);
+          const price = Number(it && it.price ? it.price : 0);
+          itemsHtml += `<div class="flex justify-between"><div>${name} x ${escapeHtml(String(qty))}</div><div>₹${escapeHtml(String(price))}</div></div>`;
+        });
+        itemsHtml += '</div>';
+      } else {
+        itemsHtml = '<div class="text-sm text-slate-500 mt-2"></div>';
+      }
+      const displayShort = od.orderId ? formatShortId(od.orderId) : formatShortId(k);
+      wrap.innerHTML = `
+        <div class="flex items-center justify-between">
+          <div class="font-semibold">Order #${escapeHtml(displayShort)}</div>
+          <div class="text-sm text-slate-600">Total: ₹${escapeHtml(String(od.totalAmount || 0))}</div>
+        </div>
+        ${itemsHtml}
+      `;
+      ordersList.appendChild(wrap);
+    });
+  } else {
+    if (!ordersList.innerHTML.includes('Staff Verified Orders')) {
+      const spacer = document.createElement('div');
+      spacer.className = 'mt-4 text-sm text-slate-500';
+      spacer.textContent = 'No Completed Orders Yet.';
+      ordersList.appendChild(spacer);
+    }
+  }
+}
+
+/* ========= Verify helper (unchanged) ========= */
+async function verifyOrderToStudentDB(orderKey) {
+  if (!orderKey) throw new Error('Missing orderKey');
+  const orderSnapshot = await get(ref(thirdDB, 'orders/' + orderKey));
+  if (!orderSnapshot.exists()) {
+    alert('Order not found in checkorders.');
+    return;
+  }
+  const order = orderSnapshot.val();
+  const verifiedObj = {
+    orderId: order.orderId || orderKey,
+    totalAmount: order.totalAmount || (order.items ? order.items.reduce((s,i)=>s + (Number(i.price)||0)*(Number(i.qty)||0),0) : 0),
+    pushedAt: Date.now()
+  };
+  await set(ref(studentDB, 'orders/' + orderKey), verifiedObj).catch(err => {
+    console.error('Failed writing to student DB', err);
+    throw err;
+  });
+  await remove(ref(thirdDB, 'orders/' + orderKey)).catch(()=>{});
+  scheduleDeletion(orderKey, verifiedObj.pushedAt);
+}
+
+/* ========= Tabs ========= */
+function clearActiveTabs(){ document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('bg-amber-50','ring','ring-amber-100')); }
+window.selectTab = function(event){
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('bg-amber-50','ring','ring-amber-100'));
+  const btn = event.currentTarget || event;
+  const tab = (btn.dataset) ? btn.dataset.tab : 'all';
+  btn.classList.add('bg-amber-50','ring','ring-amber-100');
+  renderAllItems(tab);
+  window.scrollTo({ top: document.getElementById('menu').offsetTop - 80, behavior: 'smooth' });
+};
+window.filterTab = function(category){
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.dataset.tab === category) b.classList.add('bg-amber-50','ring','ring-amber-100'); else b.classList.remove('bg-amber-50','ring','ring-amber-100');
+  });
+  renderAllItems(category);
+  window.scrollTo({ top: document.getElementById('menu').offsetTop - 80, behavior: 'smooth' });
+};
+
+/* ========= Try Now logic ========= */
+/*
+  The Try Now button will pick the current highlight message's dish if it mentions a dish name
+  or fallback to the first menu item. It will scroll to that item card and add a flash highlight.
+  If the highlight message points to a dish that exists in the menu, it will pre-select it in the Review modal.
+*/
+const highlights = [
+  "🍔 Discover today’s special: Spicy Chicken Fried rice!",
+  "🍕 Hot Deal: Get 10% off on First order ",
+  "🥤 New arrival: Choco Cold Coffee is back!",
+  "🥗 Healthy Pick: Try our new Caesar Salad!",
+
+];
+let highlightIndex = 0;
+function rotateHeaderHighlights() {
+  highlightIndex = (highlightIndex + 1) % highlights.length;
+  headerHighlight.textContent = highlights[highlightIndex];
+}
+// rotate every 4 seconds
+setInterval(rotateHeaderHighlights, 4000);
+
+// Try Now click: try to find dish name inside highlight message
+tryNowBtn.addEventListener('click', () => {
+  const text = headerHighlight.textContent || '';
+  // find menu item name that appears in highlight (loose contains)
+  const found = menuItems.find(mi => {
+    const n = mi.name.toLowerCase();
+    return text.toLowerCase().includes(n);
+  });
+  let targetDish = found ? found.name : (menuItems[0] ? menuItems[0].name : null);
+  if (!targetDish) return;
+  // scroll to menu and highlight
+  window.filterTab('all');
+  setTimeout(() => {
+    const norm = normalizeName(targetDish);
+    const el = Array.from(document.querySelectorAll('.item-card-mobile')).find(c => c.dataset.nameNorm === norm);
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      const top = window.scrollY + rect.top - 80;
+      window.scrollTo({ top, behavior: 'smooth' });
+      // flash highlight
+      el.classList.add('highlight-flash');
+      setTimeout(()=> el.classList.remove('highlight-flash'), 1200);
+      // open review modal preselected
+      showReviewModal(targetDish);
+    }
+  }, 250);
+});
+
+/* ========= Review modal wiring ========= */
+openReviewCenter.addEventListener('click', () => { showReviewModal(); });
+closeReviewModal.addEventListener('click', hideReviewModal);
+submitReviewBtn.addEventListener('click', submitReview);
+closeViewReviews.addEventListener('click', () => {
+  viewReviewsModal.classList.add('hidden');
+  viewReviewsModal.setAttribute('aria-hidden','true');
+  toggleBodyScroll(false);
+});
+
+/* ========= Init ========= */
+document.addEventListener('DOMContentLoaded', () => {
+  renderAllItems('breakfast');
+  listenToAvailability();
+  updateCartUI();
+  updateOrdersBadge();
+  ensureReviewSelectOptions();
+
+  // populate top nav counters with initial values (mirrors older nav)
+  cartNavCountTop.textContent = 0;
+
+  // setup review summary refresh: refresh all when reviews change for any dish
+  // We'll set up listeners per dish to auto-update summary when reviews change
+  menuItems.forEach(mi => {
+    const norm = normalizeName(mi.name);
+    const rRef = ref(studentDB, 'reviews/' + norm);
+    onValue(rRef, snapshot => {
+      // find matching card and update summary element
+      const card = Array.from(document.querySelectorAll('.item-card-mobile')).find(c => c.dataset.nameNorm === norm);
+      const target = card ? card.querySelector('[data-review-summary]') : null;
+      if (!snapshot.exists()) {
+        if (target) target.textContent = 'No reviews yet';
+        return;
+      }
+      const val = snapshot.val();
+      const arr = Object.values(val || {});
+      let sum = 0;
+      arr.forEach(x => { sum += Number(x.rating || 0); });
+      const avg = arr.length ? (sum / arr.length) : 0;
+      const avgRounded = Math.round(avg * 10) / 10;
+      if (target) target.innerHTML = `<span class="text-sm font-semibold">${avgRounded} <span class="muted">(${arr.length} reviews)</span></span>`;
+    });
+  });
+
+  // safety: schedule deletions already present in studentVerified (same as original)
+  setTimeout(() => {
+    Object.keys(latestStudentVerified || {}).forEach(k => {
+      const od = latestStudentVerified[k];
+      if (od && od.pushedAt) {
+        const age = Date.now() - od.pushedAt;
+        if (age >= TWENTY_MINUTES) {
+          deleteFromBothIfExists(k).catch(()=>{});
+        } else {
+          scheduleDeletion(k, od.pushedAt);
+        }
+      } else if (od && od.verifiedAt) {
+        const age = Date.now() - od.verifiedAt;
+        if (age >= TWENTY_MINUTES) {
+          deleteFromBothIfExists(k).catch(()=>{});
+        } else {
+          scheduleDeletion(k, od.verifiedAt);
+        }
+      } else if (od && od.createdAt) {
+        const age = Date.now() - od.createdAt;
+        if (age >= TWENTY_MINUTES) {
+          deleteFromBothIfExists(k).catch(()=>{});
+        } else {
+          scheduleDeletion(k, od.createdAt);
+        }
+      }
+    });
+  }, 1500);
+});
+  </script>
+</body>
+</html>
